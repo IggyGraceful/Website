@@ -1,0 +1,476 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Interactive Demo - Retro Style with Detailed Trees</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black; /* Black background for retro contrast */
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated; /* Ensures the canvas scales without smoothing */
+        }
+        #notification {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 24px;
+            color: #FFFFFF; /* White text for contrast */
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+            font-family: 'Press Start 2P', cursive; /* Retro font */
+        }
+        #audio-icon {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+        }
+        /* Importing retro font */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    </style>
+</head>
+<body>
+    <div id="notification"></div>
+    <img id="audio-icon" src="https://img.icons8.com/ios-glyphs/30/ffffff/speaker.png" alt="Audio Icon">
+    <!-- Include Three.js library from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Include FontLoader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/loaders/FontLoader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/geometries/TextGeometry.min.js"></script>
+    <!-- Main JavaScript code -->
+    <script>
+        // Variables
+        let scene, camera, renderer; // Scene, camera, and renderer variables
+        let character; // The main character in the scene
+        let moveForward = false, // Boolean to track forward movement
+            moveBackward = false, // Boolean to track backward movement
+            rotateLeft = false, // Boolean to track left rotation
+            rotateRight = false; // Boolean to track right rotation
+        let prevTime = performance.now(); // Keeps track of the previous time for animation frame calculation
+        const velocity = new THREE.Vector3(); // Velocity vector for character movement
+        const portals = []; // Array to hold portal objects
+        const objects = []; // For collision detection, stores objects in the scene
+
+        // Notification element
+        const notification = document.getElementById('notification');
+        let notificationTimeout; // Timeout for notification visibility
+
+        // Font Loader for retro text
+        let font;
+
+        // Audio elements
+        let audio, listener, audioLoader; // Audio-related variables
+        let isAudioPlaying = true; // Tracks if audio is playing or paused
+        const audioIcon = document.getElementById('audio-icon'); // Icon to toggle audio
+
+        // Pixelation Effect Variables
+        let pixelRatio = 0.25; // Adjust between 0.1 (more pixelated) and 1 (no pixelation)
+
+        // Load Retro Font
+        const loader = new THREE.FontLoader();
+        loader.load('https://threejs.org/examples/fonts/droid/droid_sans_mono_regular.typeface.json', function (loadedFont) {
+            font = loadedFont;
+            init(); // Initialize the scene
+            animate(); // Start animation loop
+        });
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x191970); // Midnight blue background // Black background for retro feel
+            scene.fog = new THREE.Fog(0x000000, 50, 200); // Linear fog with black color
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(
+                75, // Field of view
+                window.innerWidth / window.innerHeight, // Aspect ratio
+                1, // Near clipping plane
+                1000 // Far clipping plane
+            );
+            camera.position.set(0, 6, -15); // Fixed position relative to the character
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: false }); // Renderer without antialiasing for pixelated effect
+            renderer.setSize(window.innerWidth, window.innerHeight); // Set size to window dimensions
+            renderer.domElement.style.imageRendering = 'pixelated'; // Ensures scaling is pixelated
+            renderer.setPixelRatio(window.devicePixelRatio * pixelRatio); // Apply pixelation
+            document.body.appendChild(renderer.domElement); // Append renderer to the document body
+
+            // Ground with Flat Shading
+            const groundGeometry = new THREE.PlaneGeometry(2000, 2000); // Extend ground to create a visual effect of an infinite forest // Large plane for ground
+            const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x004d00, flatShading: true }); // Darker green ground // Green ground with flat shading
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+            scene.add(ground); // Add ground to the scene
+
+            // Character setup
+            character = createCharacter();
+            character.position.set(-180, 1, -180); // Start character in the corner of the map
+            character.rotation.y = Math.PI / 4; // Face away from the center
+            scene.add(character); // Add character to the scene
+
+            // Create Portals
+            createPortals();
+
+            // Create more complex trees
+            createMoreComplexTrees();
+
+            // Audio setup
+            listener = new THREE.AudioListener();
+            camera.add(listener); // Add listener to the camera
+
+            audio = new THREE.Audio(listener); // Create audio object with listener
+
+            audioLoader = new THREE.AudioLoader();
+            // Load background audio (must be placed in the same directory as this HTML file)
+            audioLoader.load('background.mp3', function(buffer) {
+                audio.setBuffer(buffer);
+                audio.setLoop(true); // Set audio to loop
+                audio.setVolume(0.5); // Set volume level
+                audio.play(); // Play audio
+            }, undefined, function(err) {
+                console.error('An error happened while loading the audio.'); // Error handling
+            });
+
+            // Audio Icon Event Listener
+            audioIcon.addEventListener('click', toggleAudio); // Event listener to toggle audio on icon click
+
+            // Event Listeners for user interactions
+            document.addEventListener('keydown', onKeyDown, false); // Detect key presses
+            document.addEventListener('keyup', onKeyUp, false); // Detect key releases
+            window.addEventListener('resize', onWindowResize, false); // Adjust on window resize
+        }
+
+        // Function to toggle audio on/off
+        function toggleAudio() {
+            if (isAudioPlaying) {
+                audio.pause(); // Pause audio
+                audioIcon.src = 'https://img.icons8.com/ios-glyphs/30/ffffff/mute.png'; // Change icon to mute
+            } else {
+                audio.play(); // Play audio
+                audioIcon.src = 'https://img.icons8.com/ios-glyphs/30/ffffff/speaker.png'; // Change icon to speaker
+            }
+            isAudioPlaying = !isAudioPlaying; // Toggle audio state
+        }
+
+        // Function to create character
+        function createCharacter() {
+            const group = new THREE.Group(); // Create a group for character components
+
+            // Body with Flat Shading
+            const bodyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 6); // Cylinder geometry for body
+            const bodyMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFF0000, // Red color for body
+                flatShading: true // Flat shading effect
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial); // Mesh combining geometry and material
+            group.add(body); // Add body to character group
+
+            // Head with Flat Shading
+            const headGeometry = new THREE.SphereGeometry(0.5, 6, 6); // Sphere geometry for head
+            const headMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFFF00, // Yellow color for head
+                flatShading: true // Flat shading effect
+            });
+            const head = new THREE.Mesh(headGeometry, headMaterial); // Mesh combining geometry and material
+            head.position.y = 1.5; // Position head on top of body
+            group.add(head); // Add head to character group
+
+            // Cone Hat with Flat Shading
+            const hatGeometry = new THREE.ConeGeometry(0.6, 1, 4); // Cone geometry for hat
+            const hatMaterial = new THREE.MeshBasicMaterial({ color: 0x0000FF, flatShading: true }); // Blue color for hat
+            const hat = new THREE.Mesh(hatGeometry, hatMaterial); // Mesh combining geometry and material
+            hat.position.y = 2.3; // Position hat on top of head
+            group.add(hat); // Add hat to character group
+
+            group.position.y = 1; // Position character on the ground
+
+            // Add to objects for collision detection
+            objects.push(group);
+
+            return group; // Return character group
+        }
+
+        // Function to create portals
+        function createPortals() {
+            const portalNames = ['SHOP', 'ABOUT', 'CONTACT', 'LOOKBOOK', 'BLOG', 'CAREERS']; // Names for portals
+            const radius = 19.5; // Hexagon radius for portal placement
+            const angleIncrement = (Math.PI * 2) / 6; // Calculate angle increment for hexagonal layout
+            const portalColors = [0xFF0000, 0xFF7F00, 0xFFFF00, 0x00FF00, 0x0000FF, 0x8B00FF]; // Colors representing different parts of the rainbow // White color for simplicity
+
+            for (let i = 0; i < 6; i++) {
+                const angle = angleIncrement * i; // Calculate angle for each portal
+                const x = radius * Math.cos(angle); // X coordinate based on angle
+                const z = radius * Math.sin(angle); // Z coordinate based on angle
+                const position = new THREE.Vector3(x, 0, z); // Create position vector for portal
+
+                const portalGroup = new THREE.Group(); // Create a group for portal components
+
+                // Portal Frame with Flat Shading
+                const frameGeometry = new THREE.BoxGeometry(5.2, 10.4, 0.65); // Geometry for portal frame
+                const frameMaterial = new THREE.MeshBasicMaterial({ color: 0x808080, flatShading: true }); // Gray frame
+                const frame = new THREE.Mesh(frameGeometry, frameMaterial); // Mesh combining geometry and material
+                frame.position.y = 4; // Position frame vertically
+                portalGroup.add(frame); // Add frame to portal group
+
+                // Inner Portal with Flat Shading
+                const innerGeometry = new THREE.PlaneGeometry(4.55, 9.75); // Geometry for inner portal plane
+                const innerMaterial = new THREE.MeshBasicMaterial({
+                    color: portalColors[i],
+                    flatShading: true
+                });
+                const innerPortal = new THREE.Mesh(innerGeometry, innerMaterial); // Mesh combining geometry and material
+                innerPortal.position.y = 4; // Position inner portal vertically
+                innerPortal.position.z = 0.35; // Slightly in front of the frame
+                portalGroup.add(innerPortal); // Add inner portal to portal group
+
+                portalGroup.position.copy(position); // Set portal position
+
+                // Calculate angle to face outward
+                portalGroup.lookAt(0, 0, 0); // Point towards the center
+                portalGroup.rotateY(Math.PI); // Rotate to face outward
+
+                // Add label with Retro Font
+                if (font) {
+                    const textGeometry = new THREE.TextGeometry(portalNames[i], {
+                        font: font,
+                        size: 1.04,
+                        height: 0.1,
+                    });
+                    const textMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xFFFFFF, // White color for text
+                        flatShading: true
+                    });
+                    const textMesh = new THREE.Mesh(textGeometry, textMaterial); // Mesh combining geometry and material
+
+                    // Center the text
+                    textGeometry.computeBoundingBox(); // Calculate bounding box for text
+                    const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x; // Width of text
+                    textMesh.position.set(-textWidth / 2, 11.7, 0); // Position above the portal
+                    textMesh.rotation.y = 0; // Faces the same direction as the portal
+
+                    portalGroup.add(textMesh); // Add text label to portal group
+
+                    // Add floating animation to the label
+                    portals.push({
+                        group: portalGroup,
+                        name: portalNames[i],
+                        innerPortal: innerPortal,
+                        labelMesh: textMesh,
+                        labelStartY: textMesh.position.y,
+                    });
+                } else {
+                    portals.push({
+                        group: portalGroup,
+                        name: portalNames[i],
+                        innerPortal: innerPortal,
+                    });
+                }
+
+                scene.add(portalGroup); // Add portal group to the scene
+
+                // Add to objects for collision detection
+                objects.push(portalGroup);
+            }
+        }
+
+        // Function to create more complex trees
+        function createMoreComplexTrees() {
+            const treeCount = 500; // Increase tree count to populate the extended map // Number of trees to create
+            const treeRadius = 1000; // Increase tree placement radius to cover the extended ground area // Radius for random tree placement
+            const minDistanceFromCenter = 30; // Minimum distance from the center to avoid clutter
+
+            for (let i = 0; i < treeCount; i++) {
+                const angle = Math.random() * Math.PI * 2; // Random angle for placement
+                const distance = minDistanceFromCenter + Math.random() * (treeRadius - minDistanceFromCenter); // Random distance within bounds
+                const x = distance * Math.cos(angle); // X coordinate based on angle and distance
+                const z = distance * Math.sin(angle); // Z coordinate based on angle and distance
+
+                const tree = new THREE.Group(); // Create a group for tree components
+
+                // Trunk
+                const trunkHeight = 25 + Math.random() * 10; // Random height for variety
+                const trunkGeometry = new THREE.CylinderGeometry(1, 1.5, trunkHeight, 8); // Geometry for trunk
+                const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513, flatShading: true }); // Brown trunk
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial); // Mesh combining geometry and material
+                trunk.position.y = trunkHeight / 2; // Position trunk vertically
+                tree.add(trunk); // Add trunk to tree group
+
+                // Foliage - Multiple Layers of Leaves
+                const foliageColors = [0x006400, 0x008000, 0x228B22]; // Different shades of green for foliage
+                let foliageHeight = trunkHeight;
+
+                for (let j = 0; j < 3; j++) {
+                    const foliageGeometry = new THREE.ConeGeometry(6 - j, 9, 5); // Larger cones for foliage
+                    const foliageMaterial = new THREE.MeshBasicMaterial({ color: foliageColors[j], flatShading: true }); // Green foliage
+                    const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial); // Mesh combining geometry and material
+                    foliage.position.y = foliageHeight + 1; // Position foliage layers above trunk
+                    tree.add(foliage); // Add foliage to tree group
+                    foliageHeight += 4; // Increment height for next layer
+                }
+
+                tree.position.set(x, 0, z); // Set position of tree
+                scene.add(tree); // Add tree to the scene
+                objects.push(tree); // Add to objects for collision detection
+            }
+        }
+
+        // Function to handle key down events for character movement
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveBackward = true; // Set moveBackward to true
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    rotateLeft = true; // Set rotateLeft to true
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveForward = true; // Set moveForward to true
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    rotateRight = true; // Set rotateRight to true
+                    break;
+            }
+        }
+
+        // Function to handle key up events to stop character movement
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveBackward = false; // Set moveBackward to false
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    rotateLeft = false; // Set rotateLeft to false
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveForward = false; // Set moveForward to false
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    rotateRight = false; // Set rotateRight to false
+                    break;
+            }
+        }
+
+        // Function to handle window resize event
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; // Update aspect ratio
+            camera.updateProjectionMatrix(); // Update projection matrix
+
+            renderer.setSize(window.innerWidth, window.innerHeight); // Update renderer size
+        }
+
+        // Main animation loop
+        function animate() {
+            requestAnimationFrame(animate); // Request next frame
+
+            const currentTime = performance.now(); // Get current time
+            const delta = (currentTime - prevTime) / 1000; // Calculate delta time
+
+            // Implement frame rate control (20 FPS => 50ms per frame)
+            const desiredFPS = 20;
+            const frameInterval = 1000 / desiredFPS; // 50 ms
+            if (currentTime - prevTime < frameInterval) {
+                return; // Skip rendering this frame
+            }
+
+            // Update previous time
+            prevTime = currentTime;
+
+            // Movement calculations
+            velocity.x = 0;
+            velocity.z = 0;
+            const rotationSpeed = 2.0; // Slower rotation speed
+            const moveSpeed = 20.0; // Slower movement speed
+
+            // Rotate character
+            if (rotateLeft) {
+                character.rotation.y += rotationSpeed * delta; // Rotate left
+            }
+            if (rotateRight) {
+                character.rotation.y -= rotationSpeed * delta; // Rotate right
+            }
+
+            // Move character forward/backward
+            if (moveForward) {
+                velocity.z = -moveSpeed * delta; // Move forward
+            }
+            if (moveBackward) {
+                velocity.z = moveSpeed * delta; // Move backward
+            }
+
+            // Calculate movement direction
+            const forward = new THREE.Vector3(0, 0, 1); // Forward direction
+            forward.applyQuaternion(character.quaternion); // Apply character rotation
+            forward.normalize(); // Normalize direction
+
+            const moveX = forward.x * velocity.z; // X component of movement
+            const moveZ = forward.z * velocity.z; // Z component of movement
+
+            // Update character's position based on movement
+            character.position.x += moveX;
+            character.position.z += moveZ;
+
+            // Collision with ground boundaries
+            const boundary = 100; // Define boundary limits
+            character.position.x = Math.max(-boundary, Math.min(boundary, character.position.x)); // Limit character movement along X axis
+            character.position.z = Math.max(-boundary, Math.min(boundary, character.position.z)); // Limit character movement along Z axis
+
+            // Update camera position to follow character rotation but maintain a fixed distance
+            const cameraOffset = new THREE.Vector3(0, 7, -15); // Fixed offset for camera
+            const offsetPosition = cameraOffset.clone().applyQuaternion(character.quaternion); // Calculate offset position
+            camera.position.copy(character.position.clone().add(offsetPosition)); // Update camera position
+            camera.lookAt(character.position.x, 7, character.position.z); // Make camera look at character
+
+            // Portal interaction and label animation
+            portals.forEach(portalObj => {
+                const portal = portalObj.group;
+                const distance = character.position.distanceTo(portal.position); // Calculate distance to portal
+                if (distance < 5) {
+                    // Show notification if close to portal
+                    showNotification(`Portal to ${portalObj.name} Triggered`);
+
+                    // Visual effect: Change portal color for interaction feedback
+                    const primaryColors = [0xFF0000, 0x00FF00, 0x0000FF];
+                    const randomColor = primaryColors[Math.floor(Math.random() * primaryColors.length)];
+                    portalObj.innerPortal.material.color.setHex(randomColor); // Random primary color when triggered // Red color when triggered
+                } else {
+                    portalObj.innerPortal.material.color.setHex(0xFFFFFF); // White color otherwise
+                }
+
+                // Floating label animation (simplified)
+                if (portalObj.labelMesh) {
+                    portalObj.labelMesh.position.y = portalObj.labelStartY + Math.sin(currentTime * 0.002 + portalObj.group.position.x) * 0.2; // Animate label position
+                }
+            });
+
+            renderer.render(scene, camera); // Render the scene
+        }
+
+        // Function to show notifications on screen
+        function showNotification(message) {
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout); // Clear previous notification timeout
+            }
+            notification.textContent = message; // Set notification text
+            notification.style.opacity = 1; // Show notification
+            notificationTimeout = setTimeout(() => {
+                notification.style.opacity = 0; // Hide notification after 2 seconds
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
