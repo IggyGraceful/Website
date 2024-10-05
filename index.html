@@ -37,46 +37,70 @@
         /* Importing retro font */
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-        /* Touch Controls */
-        #top-control, #bottom-control, #left-control, #right-control {
-            position: absolute;
-            background-color: rgba(0, 0, 0, 0); /* Transparent background */
-            z-index: 10; /* Place controls above canvas but below other UI elements */
-        }
-        #top-control {
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 33%;
-        }
-        #bottom-control {
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 33%;
-        }
-        #left-control {
-            top: 33%;
-            left: 0;
-            width: 50%;
-            height: 34%;
-        }
-        #right-control {
-            top: 33%;
-            right: 0;
-            width: 50%;
-            height: 34%;
+        /* Touch Controls for Mobile Only */
+        @media (max-width: 768px) {
+            .touch-control {
+                position: absolute;
+                background-color: rgba(255, 255, 255, 0.2); /* Semi-transparent white */
+                z-index: 10; /* Place controls above canvas but below other UI elements */
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                border-radius: 50%;
+            }
+            #up-arrow {
+                bottom: 20%;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 15%;
+                height: 15%;
+            }
+            #down-arrow {
+                bottom: 5%;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 15%;
+                height: 15%;
+            }
+            #left-arrow {
+                bottom: 12.5%;
+                left: 30%;
+                transform: translateX(-50%);
+                width: 15%;
+                height: 15%;
+            }
+            #right-arrow {
+                bottom: 12.5%;
+                right: 30%;
+                transform: translateX(50%);
+                width: 15%;
+                height: 15%;
+            }
+            /* Arrow Images */
+            .arrow-image {
+                width: 100%;
+                height: 100%;
+                opacity: 0.8;
+            }
         }
     </style>
 </head>
 <body>
     <div id="notification"></div>
     <img id="audio-icon" src="https://img.icons8.com/ios-glyphs/30/ffffff/speaker.png" alt="Audio Icon">
-    <!-- Touch Controls -->
-    <div id="top-control"></div>
-    <div id="bottom-control"></div>
-    <div id="left-control"></div>
-    <div id="right-control"></div>
+    <!-- Touch Controls for Mobile Only -->
+    <div id="up-arrow" class="touch-control">
+        <img src="https://img.icons8.com/ios-filled/50/ffffff/up.png" class="arrow-image" alt="Up Arrow">
+    </div>
+    <div id="down-arrow" class="touch-control">
+        <img src="https://img.icons8.com/ios-filled/50/ffffff/down.png" class="arrow-image" alt="Down Arrow">
+    </div>
+    <div id="left-arrow" class="touch-control">
+        <img src="https://img.icons8.com/ios-filled/50/ffffff/left.png" class="arrow-image" alt="Left Arrow">
+    </div>
+    <div id="right-arrow" class="touch-control">
+        <img src="https://img.icons8.com/ios-filled/50/ffffff/right.png" class="arrow-image" alt="Right Arrow">
+    </div>
     <!-- Include Three.js library from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Include FontLoader -->
@@ -173,7 +197,6 @@
                 audio.setLoop(true);
                 audio.setVolume(0.5);
                 // Do not autoplay to comply with mobile browser policies
-                // audio.play();
             }, undefined, function(err) {
                 console.error('An error happened while loading the audio.');
             });
@@ -186,60 +209,71 @@
             document.addEventListener('keyup', onKeyUp, false);
             window.addEventListener('resize', onWindowResize, false);
 
-            // Touch Controls
-            const topControl = document.getElementById('top-control');
-            const bottomControl = document.getElementById('bottom-control');
-            const leftControl = document.getElementById('left-control');
-            const rightControl = document.getElementById('right-control');
+            // Touch Controls for Mobile Only
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-            // Prevent default touch actions
-            document.body.addEventListener('touchstart', function(event) {
-                event.preventDefault();
-            }, { passive: false });
+            if (isMobile) {
+                const upArrow = document.getElementById('up-arrow');
+                const downArrow = document.getElementById('down-arrow');
+                const leftArrow = document.getElementById('left-arrow');
+                const rightArrow = document.getElementById('right-arrow');
 
-            // Top Control - Move Forward
-            topControl.addEventListener('touchstart', function(event) {
-                event.preventDefault();
-                moveForward = true;
-            }, { passive: false });
-            topControl.addEventListener('touchend', function(event) {
-                event.preventDefault();
-                moveForward = false;
-            }, { passive: false });
+                // Up Arrow - Move Forward
+                upArrow.addEventListener('touchstart', function(event) {
+                    event.preventDefault();
+                    moveForward = true;
+                }, { passive: false });
+                upArrow.addEventListener('touchend', function(event) {
+                    event.preventDefault();
+                    moveForward = false;
+                }, { passive: false });
 
-            // Bottom Control - Move Backward
-            bottomControl.addEventListener('touchstart', function(event) {
-                event.preventDefault();
-                moveBackward = true;
-            }, { passive: false });
-            bottomControl.addEventListener('touchend', function(event) {
-                event.preventDefault();
-                moveBackward = false;
-            }, { passive: false });
+                // Down Arrow - Move Backward
+                downArrow.addEventListener('touchstart', function(event) {
+                    event.preventDefault();
+                    moveBackward = true;
+                }, { passive: false });
+                downArrow.addEventListener('touchend', function(event) {
+                    event.preventDefault();
+                    moveBackward = false;
+                }, { passive: false });
 
-            // Left Control - Rotate Left
-            leftControl.addEventListener('touchstart', function(event) {
-                event.preventDefault();
-                rotateLeft = true;
-            }, { passive: false });
-            leftControl.addEventListener('touchend', function(event) {
-                event.preventDefault();
-                rotateLeft = false;
-            }, { passive: false });
+                // Left Arrow - Rotate Left
+                leftArrow.addEventListener('touchstart', function(event) {
+                    event.preventDefault();
+                    rotateLeft = true;
+                }, { passive: false });
+                leftArrow.addEventListener('touchend', function(event) {
+                    event.preventDefault();
+                    rotateLeft = false;
+                }, { passive: false });
 
-            // Right Control - Rotate Right
-            rightControl.addEventListener('touchstart', function(event) {
-                event.preventDefault();
-                rotateRight = true;
-            }, { passive: false });
-            rightControl.addEventListener('touchend', function(event) {
-                event.preventDefault();
-                rotateRight = false;
-            }, { passive: false });
+                // Right Arrow - Rotate Right
+                rightArrow.addEventListener('touchstart', function(event) {
+                    event.preventDefault();
+                    rotateRight = true;
+                }, { passive: false });
+                rightArrow.addEventListener('touchend', function(event) {
+                    event.preventDefault();
+                    rotateRight = false;
+                }, { passive: false });
+            }
+
+            // Ensure audio context is resumed on user interaction
+            document.body.addEventListener('click', resumeAudioContext, false);
+            document.body.addEventListener('touchstart', resumeAudioContext, false);
+        }
+
+        // Function to resume audio context
+        function resumeAudioContext() {
+            if (audio.context.state === 'suspended') {
+                audio.context.resume();
+            }
         }
 
         // Function to toggle audio on/off
         function toggleAudio() {
+            resumeAudioContext(); // Ensure audio context is resumed
             if (isAudioPlaying) {
                 audio.pause();
                 audioIcon.src = 'https://img.icons8.com/ios-glyphs/30/ffffff/mute.png';
