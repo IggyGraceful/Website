@@ -37,50 +37,41 @@
         /* Importing retro font */
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-        /* Touch Controls for Mobile Only */
-        @media (max-width: 768px) {
-            .touch-control {
-                position: absolute;
-                background-color: rgba(255, 255, 255, 0.2); /* Semi-transparent white */
-                z-index: 10; /* Place controls above canvas but below other UI elements */
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                border-radius: 50%;
+        /* Instructional Message Styling */
+        #instruction-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 500px;
+            padding: 25px;
+            background-color: rgba(139, 69, 19, 0.95); /* Semi-transparent brown for wooden sign */
+            border: 4px solid #8B4513; /* Dark brown border */
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.7);
+            font-family: 'Press Start 2P', cursive; /* Retro font */
+            color: #F5DEB3; /* Wheat color for text */
+            z-index: 30; /* Above all other elements */
+            text-align: center;
+            opacity: 1;
+            transition: opacity 2s ease-in-out;
+            pointer-events: none; /* Allow clicks to pass through */
+        }
+        #instruction-message p {
+            margin: 10px 0;
+            font-size: 14px; /* Increased font size for better readability */
+            line-height: 1.5;
+        }
+
+        /* Adjustments for smaller screens */
+        @media (max-width: 320px) {
+            #instruction-message {
+                width: 90%;
+                padding: 15px;
             }
-            #up-arrow {
-                bottom: 20%;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 15%;
-                height: 15%;
-            }
-            #down-arrow {
-                bottom: 5%;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 15%;
-                height: 15%;
-            }
-            #left-arrow {
-                bottom: 12.5%;
-                left: 30%;
-                transform: translateX(-50%);
-                width: 15%;
-                height: 15%;
-            }
-            #right-arrow {
-                bottom: 12.5%;
-                right: 30%;
-                transform: translateX(50%);
-                width: 15%;
-                height: 15%;
-            }
-            /* Arrow Images */
-            .arrow-image {
-                width: 100%;
-                height: 100%;
-                opacity: 0.8;
+            #instruction-message p {
+                font-size: 12px;
             }
         }
     </style>
@@ -88,19 +79,14 @@
 <body>
     <div id="notification"></div>
     <img id="audio-icon" src="https://img.icons8.com/ios-glyphs/30/ffffff/speaker.png" alt="Audio Icon">
-    <!-- Touch Controls for Mobile Only -->
-    <div id="up-arrow" class="touch-control">
-        <img src="https://img.icons8.com/ios-filled/50/ffffff/up.png" class="arrow-image" alt="Up Arrow">
+    
+    <!-- Instructional Message -->
+    <div id="instruction-message">
+        <p id="instructions">
+            <!-- Instructions will be populated by JavaScript -->
+        </p>
     </div>
-    <div id="down-arrow" class="touch-control">
-        <img src="https://img.icons8.com/ios-filled/50/ffffff/down.png" class="arrow-image" alt="Down Arrow">
-    </div>
-    <div id="left-arrow" class="touch-control">
-        <img src="https://img.icons8.com/ios-filled/50/ffffff/left.png" class="arrow-image" alt="Left Arrow">
-    </div>
-    <div id="right-arrow" class="touch-control">
-        <img src="https://img.icons8.com/ios-filled/50/ffffff/right.png" class="arrow-image" alt="Right Arrow">
-    </div>
+
     <!-- Include Three.js library from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Include FontLoader -->
@@ -132,6 +118,10 @@
         let isAudioPlaying = false; // Start with audio not playing
         const audioIcon = document.getElementById('audio-icon');
 
+        // Instructional Message Elements
+        const instructionMessage = document.getElementById('instruction-message');
+        const instructionsParagraph = document.getElementById('instructions');
+
         // Pixelation Effect Variables
         let pixelRatio = 0.25;
 
@@ -139,9 +129,32 @@
         const loader = new THREE.FontLoader();
         loader.load('https://threejs.org/examples/fonts/droid/droid_sans_mono_regular.typeface.json', function (loadedFont) {
             font = loadedFont;
+            // Instructions are set before initialization
+            setInstructions();
             init();
+            // Start the animation loop
             animate();
+            // After 3 seconds, fade out the instructional message
+            setTimeout(() => {
+                instructionMessage.style.opacity = '0';
+            }, 3000);
         });
+
+        // Function to set instructions based on device
+        function setInstructions() {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                instructionsParagraph.innerHTML = `
+                    Touch edges of screen to rotate right or left.<br>
+                    Touch bottom of screen to move forward.<br>
+                    Press top of screen to move backward.
+                `;
+            } else {
+                instructionsParagraph.innerHTML = `
+                    Use Arrow Keys or WASD to move and rotate.
+                `;
+            }
+        }
 
         function init() {
             // Scene setup
@@ -191,7 +204,7 @@
             audio = new THREE.Audio(listener);
 
             audioLoader = new THREE.AudioLoader();
-            // Load background audio (must be placed in the same directory as this HTML file)
+            // Load background audio (ensure 'background.mp3' is correctly placed)
             audioLoader.load('background.mp3', function(buffer) {
                 audio.setBuffer(buffer);
                 audio.setLoop(true);
@@ -213,75 +226,12 @@
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
             if (isMobile) {
-                const upArrow = document.getElementById('up-arrow');
-                const downArrow = document.getElementById('down-arrow');
-                const leftArrow = document.getElementById('left-arrow');
-                const rightArrow = document.getElementById('right-arrow');
-
-                // Up Arrow - Move Forward
-                upArrow.addEventListener('touchstart', function(event) {
-                    event.preventDefault();
-                    moveForward = true;
-                }, { passive: false });
-                upArrow.addEventListener('touchend', function(event) {
-                    event.preventDefault();
-                    moveForward = false;
-                }, { passive: false });
-
-                // Down Arrow - Move Backward
-                downArrow.addEventListener('touchstart', function(event) {
-                    event.preventDefault();
-                    moveBackward = true;
-                }, { passive: false });
-                downArrow.addEventListener('touchend', function(event) {
-                    event.preventDefault();
-                    moveBackward = false;
-                }, { passive: false });
-
-                // Left Arrow - Rotate Left
-                leftArrow.addEventListener('touchstart', function(event) {
-                    event.preventDefault();
-                    rotateLeft = true;
-                }, { passive: false });
-                leftArrow.addEventListener('touchend', function(event) {
-                    event.preventDefault();
-                    rotateLeft = false;
-                }, { passive: false });
-
-                // Right Arrow - Rotate Right
-                rightArrow.addEventListener('touchstart', function(event) {
-                    event.preventDefault();
-                    rotateRight = true;
-                }, { passive: false });
-                rightArrow.addEventListener('touchend', function(event) {
-                    event.preventDefault();
-                    rotateRight = false;
-                }, { passive: false });
+                createTouchControls();
             }
 
             // Ensure audio context is resumed on user interaction
             document.body.addEventListener('click', resumeAudioContext, false);
             document.body.addEventListener('touchstart', resumeAudioContext, false);
-        }
-
-        // Function to resume audio context
-        function resumeAudioContext() {
-            if (audio.context.state === 'suspended') {
-                audio.context.resume();
-            }
-        }
-
-        // Function to toggle audio on/off
-        function toggleAudio() {
-            resumeAudioContext(); // Ensure audio context is resumed
-            if (isAudioPlaying) {
-                audio.pause();
-                audioIcon.src = 'https://img.icons8.com/ios-glyphs/30/ffffff/mute.png';
-            } else {
-                audio.play();
-                audioIcon.src = 'https://img.icons8.com/ios-glyphs/30/ffffff/speaker.png';
-            }
-            isAudioPlaying = !isAudioPlaying;
         }
 
         // Function to create character
@@ -498,6 +448,142 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        // Function to create touch controls for mobile
+        function createTouchControls() {
+            // Create invisible touch zones for mobile controls
+            const controlZones = {
+                top: document.createElement('div'),
+                bottom: document.createElement('div'),
+                left: document.createElement('div'),
+                right: document.createElement('div')
+            };
+
+            // Style touch zones
+            Object.keys(controlZones).forEach(zone => {
+                const element = controlZones[zone];
+                element.style.position = 'absolute';
+                element.style.backgroundColor = 'rgba(0, 0, 0, 0)'; // Transparent
+                element.style.zIndex = '10'; // Above canvas but below other UI elements
+                element.style.touchAction = 'none'; // Prevent default touch actions
+                document.body.appendChild(element);
+            });
+
+            // Define sizes and positions based on screen orientation
+            function adjustTouchZones() {
+                const isLandscape = window.innerWidth > window.innerHeight;
+                if (isLandscape) {
+                    // Landscape layout
+                    controlZones.left.style.left = '0';
+                    controlZones.left.style.top = '0';
+                    controlZones.left.style.width = '20%';
+                    controlZones.left.style.height = '100%';
+
+                    controlZones.right.style.right = '0';
+                    controlZones.right.style.top = '0';
+                    controlZones.right.style.width = '20%';
+                    controlZones.right.style.height = '100%';
+
+                    controlZones.top.style.top = '0';
+                    controlZones.top.style.left = '20%';
+                    controlZones.top.style.width = '60%';
+                    controlZones.top.style.height = '20%';
+
+                    controlZones.bottom.style.bottom = '0';
+                    controlZones.bottom.style.left = '20%';
+                    controlZones.bottom.style.width = '60%';
+                    controlZones.bottom.style.height = '20%';
+                } else {
+                    // Portrait layout
+                    controlZones.top.style.top = '0';
+                    controlZones.top.style.left = '0';
+                    controlZones.top.style.width = '100%';
+                    controlZones.top.style.height = '20%';
+
+                    controlZones.bottom.style.bottom = '0';
+                    controlZones.bottom.style.left = '0';
+                    controlZones.bottom.style.width = '100%';
+                    controlZones.bottom.style.height = '20%';
+
+                    controlZones.left.style.left = '0';
+                    controlZones.left.style.top = '20%';
+                    controlZones.left.style.width = '20%';
+                    controlZones.left.style.height = '60%';
+
+                    controlZones.right.style.right = '0';
+                    controlZones.right.style.top = '20%';
+                    controlZones.right.style.width = '20%';
+                    controlZones.right.style.height = '60%';
+                }
+            }
+
+            // Initial adjustment
+            adjustTouchZones();
+
+            // Adjust on window resize
+            window.addEventListener('resize', adjustTouchZones, false);
+
+            // Add touch event listeners
+            // Top Control - Move Backward
+            controlZones.top.addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                moveBackward = true;
+            }, { passive: false });
+            controlZones.top.addEventListener('touchend', function(event) {
+                event.preventDefault();
+                moveBackward = false;
+            }, { passive: false });
+
+            // Bottom Control - Move Forward
+            controlZones.bottom.addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                moveForward = true;
+            }, { passive: false });
+            controlZones.bottom.addEventListener('touchend', function(event) {
+                event.preventDefault();
+                moveForward = false;
+            }, { passive: false });
+
+            // Left Control - Rotate Left
+            controlZones.left.addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                rotateLeft = true;
+            }, { passive: false });
+            controlZones.left.addEventListener('touchend', function(event) {
+                event.preventDefault();
+                rotateLeft = false;
+            }, { passive: false });
+
+            // Right Control - Rotate Right
+            controlZones.right.addEventListener('touchstart', function(event) {
+                event.preventDefault();
+                rotateRight = true;
+            }, { passive: false });
+            controlZones.right.addEventListener('touchend', function(event) {
+                event.preventDefault();
+                rotateRight = false;
+            }, { passive: false });
+        }
+
+        // Function to toggle audio on/off
+        function toggleAudio() {
+            resumeAudioContext(); // Ensure audio context is resumed
+            if (isAudioPlaying) {
+                audio.pause();
+                audioIcon.src = 'https://img.icons8.com/ios-glyphs/30/ffffff/mute.png';
+            } else {
+                audio.play();
+                audioIcon.src = 'https://img.icons8.com/ios-glyphs/30/ffffff/speaker.png';
+            }
+            isAudioPlaying = !isAudioPlaying;
+        }
+
+        // Function to resume audio context
+        function resumeAudioContext() {
+            if (audio.context && audio.context.state === 'suspended') {
+                audio.context.resume();
+            }
+        }
+
         // Main animation loop
         function animate() {
             requestAnimationFrame(animate);
@@ -590,9 +676,9 @@
                 clearTimeout(notificationTimeout);
             }
             notification.textContent = message;
-            notification.style.opacity = 1;
+            notification.style.opacity = '1';
             notificationTimeout = setTimeout(() => {
-                notification.style.opacity = 0;
+                notification.style.opacity = '0';
             }, 2000);
         }
     </script>
