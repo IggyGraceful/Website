@@ -123,7 +123,15 @@
         const instructionsParagraph = document.getElementById('instructions');
 
         // Pixelation Effect Variables
-        let pixelRatio = 0.25;
+        let pixelRatio;
+
+        if (/Mobi|Android/i.test(navigator.userAgent)) {
+        // On mobile devices
+        pixelRatio = 0.09;
+        } else {
+        // On other devices
+        pixelRatio = 0.25;
+        }
 
         // Load Retro Font
         const loader = new THREE.FontLoader();
