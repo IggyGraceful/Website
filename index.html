@@ -60,7 +60,7 @@
         }
         #instruction-message p {
             margin: 10px 0;
-            font-size: 14px; /* Increased font size for better readability */
+            font-size: 34px; /* Increased font size for better readability */
             line-height: 1.5;
         }
 
@@ -146,8 +146,8 @@
             if (isMobile) {
                 instructionsParagraph.innerHTML = `
                     Touch edges of screen to rotate right or left.<br>
-                    Touch bottom of screen to move forward.<br>
-                    Press top of screen to move backward.
+                    Touch bottom and top of screen to move<br>
+                    forward and backward.
                 `;
             } else {
                 instructionsParagraph.innerHTML = `
@@ -524,21 +524,21 @@
 
             // Add touch event listeners
             // Top Control - Move Backward
-            controlZones.top.addEventListener('touchstart', function(event) {
+            controlZones.bottom.addEventListener('touchstart', function(event) {
                 event.preventDefault();
                 moveBackward = true;
             }, { passive: false });
-            controlZones.top.addEventListener('touchend', function(event) {
+            controlZones.bottom.addEventListener('touchend', function(event) {
                 event.preventDefault();
                 moveBackward = false;
             }, { passive: false });
 
             // Bottom Control - Move Forward
-            controlZones.bottom.addEventListener('touchstart', function(event) {
+            controlZones.top.addEventListener('touchstart', function(event) {
                 event.preventDefault();
                 moveForward = true;
             }, { passive: false });
-            controlZones.bottom.addEventListener('touchend', function(event) {
+            controlZones.top.addEventListener('touchend', function(event) {
                 event.preventDefault();
                 moveForward = false;
             }, { passive: false });
